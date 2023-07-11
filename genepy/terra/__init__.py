@@ -150,13 +150,12 @@ def removeSamples(workspace, samples):
 
 def uploadFromFolder(
     gcpfolder,
-    prefix,
     workspace,
     sep="_",
     loc=0,
     fformat="fastq12",
     newsamples=None,
-    samplesetname,
+    samplesetname=None,
     source="U",
     bamcol="bam",
     baicol="bai",
@@ -174,7 +173,6 @@ def uploadFromFolder(
     Args:
     -----
       gcpfolder: a gs folder path
-      prefix: str the folder path
       workspace: str namespace/workspace from url typically
       sep: str the separator (only takes the first part of the name before the sep character)
       fformat bambai, fastq12, fastqR1R2 given the set of files in the folder (they need to be in this naming format)
@@ -191,8 +189,10 @@ def uploadFromFolder(
         "please be sure you gave access to your terra email account access to this bucket"
     )
     if samplesetname is None:
-        samplesetname = "from:" + gcpfolder + prefix
-    files = gcp.list_blobs_with_prefix(gcpfolder, prefix, "/")
+        samplesetname = "from:" + gcpfolder
+    bucketname = gcpfolder.split("/")[2]
+    prefix = '/'.join(gcpfolder.split("/")[3:])
+    files = gcp.list_blobs_with_prefix(bucketname, prefix, "/")
     if fformat == "bambai":
         if newsamples is None:
             data = {"sample_id": [], bamcol: [], baicol: []}
@@ -223,18 +223,18 @@ def uploadFromFolder(
             wm.update_sample_set(samplesetname, df.index.values.tolist())
         else:
             # TODO: check if each column exists and can be added, else don't add it
-            for i, val in enumerate(newsample["file_path"]):
+            for i, val in enumerate(newsamples["file_path"]):
                 if (
                     val.split("/")[-1].split(".")[1] != "WholeGenome"
                     or val.split("/")[-2] != "bam"
                 ):
-                    newsample = newsample.drop(i)
+                    newsamples = newsamples.drop(i)
                 elif val.split("/")[1] != "gs:":
-                    newsample["file_path"][i] = (
-                        gcpfolder + newsample["file_path"][i].split("/")[-1]
+                    newsamples["file_path"][i] = (
+                        gcpfolder + newsamples["file_path"][i].split("/")[-1]
                     )
-            newsample = newsample.reset_index(drop=True)
-            newsample = newsample.rename(
+            newsamples = newsamples.reset_index(drop=True)
+            newsamples = newsamples.rename(
                 index=str,
                 columns={
                     "sample_name": "sample_id",
@@ -243,36 +243,36 @@ def uploadFromFolder(
                 },
             )
             currfile = ""
-            bai = [""] * int(newsample.shape[0])
+            bai = [""] * int(newsamples.shape[0])
             # creating an array of bai and adding it to their coresponding bams
-            for i in newsample.index:
-                currfile = newsample["WGS_bam"][i]
+            for i in newsamples.index:
+                currfile = newsamples["WGS_bam"][i]
                 if currfile.split("/")[-1].split(".")[-1] == "bai":
                     bai[
                         int(
-                            newsample[
-                                newsample["WGS_bam"] == currfile[:-4]
+                            newsamples[
+                                newsamples["WGS_bam"] == currfile[:-4]
                             ].index.values[0]
                         )
                     ] = currfile
-            newsample["WGS_bam_index"] = pd.Series(bai, index=newsample.index)
+            newsamples["WGS_bam_index"] = pd.Series(bai, index=newsamples.index)
             # removing original bai rows
-            for i in newsample.index:
-                currfile = newsample["WGS_bam"][i]
+            for i in newsamples.index:
+                currfile = newsamples["WGS_bam"][i]
                 if currfile.split("/")[-1].split(".")[-1] == "bai":
-                    newsample = newsample.drop(i)
-            newsample = newsample.reset_index(drop=True)
-            newsample["sample_set"] = pd.Series(
-                [samplesetname] * int(newsample.shape[0]), index=newsample.index
+                    newsamples = newsamples.drop(i)
+            newsamples = newsamples.reset_index(drop=True)
+            newsamples["sample_set"] = pd.Series(
+                [samplesetname] * int(newsamples.shape[0]), index=newsamples.index
             )
-            newsample.set_index("sample_id", inplace=True, drop=True)
-            newsample = newsample[
-                newsample.columns.tolist()[1:] + [newsample.columns.tolist()[0]]
+            newsamples.set_index("sample_id", inplace=True, drop=True)
+            newsamples = newsamples[
+                newsamples.columns.tolist()[1:] + [newsamples.columns.tolist()[0]]
             ]
-            newsample = newsample.loc[~newsample.index.duplicated(keep="first")]
-            newsample.to_csv("temp/samples.bambai.tsv", sep="\t")
-            wm.upload_samples(newsample)
-            wm.update_sample_set(samplesetname, newsample.index)
+            newsamples = newsamples.loc[~newsamples.index.duplicated(keep="first")]
+            newsamples.to_csv("temp/samples.bambai.tsv", sep="\t")
+            wm.upload_samples(newsamples)
+            wm.update_sample_set(samplesetname, newsamples.index)
     if fformat in {"fastq12", "fastqR1R2"}:
         data = {"sample_id": [], "fastq1": [], "fastq2": []}
         # print and return well formated data
