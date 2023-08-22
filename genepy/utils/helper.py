@@ -232,12 +232,12 @@ def randomString(stringLength=6, stype="all", withdigits=True):
     Generate a random string of letters and digits
 
     Args:
-      stringLength (int, optional): the amount of char. Defaults to 6.
-      stype (str, optional): one of lowercase, uppercase, all. Defaults to 'all'.
-      withdigits (bool, optional): digits allowed in the string? Defaults to True.
+        stringLength (int, optional): the amount of char. Defaults to 6.
+        stype (str, optional): one of lowercase, uppercase, all. Defaults to 'all'.
+        withdigits (bool, optional): digits allowed in the string? Defaults to True.
 
     Returns:
-      str: random string
+        str: random string
     """
     if stype == "lowercase":
         lettersAndDigits = string.ascii_lowercase
@@ -1034,7 +1034,7 @@ def removeCoVar(mat, maxcorr=0.95):
         col = mat.index.tolist()
         # replace sameness values with the col values
         res = []
-        for (i, j) in sameness:
+        for i, j in sameness:
             res.append((col[i], col[j]))
         sameness = res
 
